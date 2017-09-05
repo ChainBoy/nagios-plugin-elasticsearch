@@ -593,12 +593,10 @@ def booleanise(b):
 
 
 def get_json(uri):
-    print "get url:", uri
     try:
         f = urllib2.urlopen(uri)
     except urllib2.HTTPError, e:
-        print uri, e
-        raise Status('unknown', ("API failure",
+        raise Status('unknown', ("API failure:\n\n%s" % str(e),
                                  None,
                                  "API failure:\n\n%s" % str(e)))
     except urllib2.URLError, e:
