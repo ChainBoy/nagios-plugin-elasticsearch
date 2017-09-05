@@ -1,4 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+# @Author: zhipeng
+# @Date:   2017-09-05 16:12:02
+# @Last Modified by:   zhipeng
+# @Last Modified time: 2017-09-05 16:12:39
 
 import urllib2
 
@@ -30,11 +35,13 @@ SHARD_STATE = {'UNASSIGNED': 1,
 
 
 class ESShard(object):
+
     def __init__(self, state):
         self.state = state
 
 
 class ESIndex(object):
+
     def __init__(self, name, n_shards, n_replicas):
         self.name = name
         self.n_shards = n_shards
@@ -42,6 +49,7 @@ class ESIndex(object):
 
 
 class ESNode(object):
+
     def __init__(self, name=None, esid=None, attributes={}):
         self.esid = esid
         self.name = name
@@ -89,15 +97,12 @@ class ElasticSearchCheck(NagiosCheck):
                         "Optional prefix (e.g. 'es') for the "
                         "ElasticSearch API. Defaults to ''.")
 
-        self.add_option('y', 'yellow-critical', 'yellow_critical',
-                        "Have plugin issue critical alert on yellow cluster state. Defaults to False.")
-
     def check(self, opts, args):
         host = opts.host or "localhost"
         port = int(opts.port or '9200')
         prefix = opts.prefix or ""
-        if not prefix.endswith('/'):
-            prefix += '/'
+        # if not prefix.endswith('/'):
+        #    prefix += '/'
 
         failure_domain = []
 
@@ -113,11 +118,6 @@ class ElasticSearchCheck(NagiosCheck):
             except ValueError:
                 raise UsageError("Argument to -m/--master-nodes must "
                                  "be a natural number")
-
-        yellow_critical = opts.yellow_critical and opts.yellow_critical.lower() not in ('f', 'false', 'n', 'no')
-        if yellow_critical:
-            HEALTH_MAP[1] = 'critical'
-
         #
         # Data retrieval
         #
@@ -127,35 +127,37 @@ class ElasticSearchCheck(NagiosCheck):
         es_about = get_json(r'http://%s:%d/%s' % (host, port, prefix))
         es_version = es_about['version']['number']
 
-        # Request cluster 'health'.  /_cluster/health is like a tl;dr 
-        # for /_cluster/state (see below).  There is very little useful 
-        # information here.  We are primarily interested in ES' cluster 
-        # 'health colour':  a little rating ES gives itself to describe 
+        # Request cluster 'health'.  /_cluster/health is like a tl;dr
+        # for /_cluster/state (see below).  There is very little useful
+        # information here.  We are primarily interested in ES' cluster
+        # 'health colour':  a little rating ES gives itself to describe
         # how much pain it is in.
         es_health = get_json(r'http://%s:%d/%s_cluster/health' %
                              (host, port, prefix))
 
         their_health = HEALTH[es_health['status'].lower()]
 
-        # Request cluster 'state'.  This be where all the meat at, yo.  
-        # Here, we can see a list of all nodes, indexes, and shards in 
-        # the cluster.  This response will also contain a map detailing 
+        # Request cluster 'state'.  This be where all the meat at, yo.
+        # Here, we can see a list of all nodes, indexes, and shards in
+        # the cluster.  This response will also contain a map detailing
         # where all shards are living at this point in time.
         es_state = get_json(r'http://%s:%d/%s_cluster/state' %
                             (host, port, prefix))
 
-        # Request a bunch of useful numbers that we export as perfdata.  
-        # Details like the number of get, search, and indexing 
+        # Request a bunch of useful numbers that we export as perfdata.
+        # Details like the number of get, search, and indexing
         # operations come from here.
-        es_stats = get_json(r'http://%s:%d/%s_nodes/_local/'
-                            'stats?all=true' % (host, port, prefix))
+        # es_stats = get_json(r'http://%s:%d/%s_nodes/_local/'
+        #                    'stats?all=true' % (host, port, prefix))
+        es_stats = get_json(r'http://%s:%d/%s_nodes/stats' %
+                            (host, port, prefix))
 
         myid = es_stats['nodes'].keys()[0]
 
         n_nodes = es_health['number_of_nodes']
         n_dnodes = es_health['number_of_data_nodes']
 
-        # Unlike n_dnodes (the number of data nodes), we must compute 
+        # Unlike n_dnodes (the number of data nodes), we must compute
         # the number of master-eligible nodes ourselves.
         n_mnodes = 0
         for esid in es_state['nodes']:
@@ -192,8 +194,8 @@ class ElasticSearchCheck(NagiosCheck):
         # Map construction
         #
 
-        # String all the dumb ES* objects into a bunch of transitive 
-        # associations so that we may make some useful assertions about 
+        # String all the dumb ES* objects into a bunch of transitive
+        # associations so that we may make some useful assertions about
         # them.
         esid_node_map = {}  # ESID       : <ESNode>
         index_primary_map = {}  # <ESIndex>  : { 0: <ESShard>, ... }
@@ -229,8 +231,8 @@ class ElasticSearchCheck(NagiosCheck):
                     node_location_map[node] = (
                         tuple(map(lambda a: attrs[a], failure_domain)))
                 except KeyError, e:
-                    # Nodes that do not store shards (e.g.: 'client' 
-                    # nodes) cannot be expected to have been configured 
+                    # Nodes that do not store shards (e.g.: 'client'
+                    # nodes) cannot be expected to have been configured
                     # with locational attributes.
                     if 'data' not in attrs or booleanise(attrs['data']):
                         missing_attr = e.args[0]
@@ -350,9 +352,9 @@ class ElasticSearchCheck(NagiosCheck):
                                                unit=unit)
                     perfdata.append(metric)
 
-        # Add cluster-wide metrics first.  If you monitor all of your ES 
-        # cluster nodes with this plugin, they should all report the 
-        # same figures for these labels.  Not ideal, but 'tis better to 
+        # Add cluster-wide metrics first.  If you monitor all of your ES
+        # cluster nodes with this plugin, they should all report the
+        # same figures for these labels.  Not ideal, but 'tis better to
         # graph this data multiple times than not graph it at all.
         metrics = [["cluster_nodes", n_nodes],
                    ["cluster_master_eligible_nodes", n_mnodes],
@@ -433,7 +435,7 @@ class ElasticSearchCheck(NagiosCheck):
                 else:
                     if primary.state not in (
                             SHARD_STATE['STARTED'],
-                            SHARD_STATE['RELOCATING'] ):
+                            SHARD_STATE['RELOCATING']):
                         downgraded |= self.downgrade_health(RED)
                         detail.append("Index '%s' primary down on "
                                       "shard %d" % (idx_name, shard_no))
@@ -464,7 +466,7 @@ class ElasticSearchCheck(NagiosCheck):
                 for replica in primary_replica_map[primary]:
                     if replica.state not in (
                             SHARD_STATE['STARTED'],
-                            SHARD_STATE['RELOCATING'] ):
+                            SHARD_STATE['RELOCATING']):
                         downgraded |= self.downgrade_health(YELLOW)
                         detail.append("Index '%s' replica down on "
                                       "shard %d" % (idx_name, shard_no))
@@ -473,15 +475,15 @@ class ElasticSearchCheck(NagiosCheck):
             msg = ("One or more indexes are missing replica shards.  "
                    "Use -vv to list them.")
 
-        # Assertion:  You have as many master-eligible nodes in the 
+        # Assertion:  You have as many master-eligible nodes in the
         # cluster as you think you ought to.
         #
-        # To be of any use in detecting split-brains, this value must be 
-        # set to the *total* number of master-eligible nodes in the 
-        # cluster, not whatever you set in ElasticSearch's 
-        # 'discovery.zen.minimum_master_nodes' configuration parameter.  
-        # (See ES issue #2488.)  Of course, this will trip whenever a 
-        # node is taken down for maintenance, so we raise only a warning 
+        # To be of any use in detecting split-brains, this value must be
+        # set to the *total* number of master-eligible nodes in the
+        # cluster, not whatever you set in ElasticSearch's
+        # 'discovery.zen.minimum_master_nodes' configuration parameter.
+        # (See ES issue #2488.)  Of course, this will trip whenever a
+        # node is taken down for maintenance, so we raise only a warning
         # -- not a critical -- status condition.
         downgraded = False
 
@@ -495,14 +497,14 @@ class ElasticSearchCheck(NagiosCheck):
         if downgraded:
             msg = ("Missing master-eligible nodes")
 
-        # Assertion:  Replicas are not stored in the same failure domain 
+        # Assertion:  Replicas are not stored in the same failure domain
         # as their primary.
         downgraded = False
 
         if len(failure_domain) > 0:
             for idx_name, idx in name_index_map.iteritems():
 
-                # Suppress this test if the index has not been 
+                # Suppress this test if the index has not been
                 # configured with replicas.
                 if idx.n_replicas == 0:
                     continue
@@ -531,7 +533,7 @@ class ElasticSearchCheck(NagiosCheck):
                         loc_redundancy.add(loc)
                         vulnerable_shards.add(replica)
 
-                    # Suppress the problem unless at least one of the 
+                    # Suppress the problem unless at least one of the
                     # vulnerable shards is on this data node.
                     my_shards = set(node_shard_map[esid_node_map[myid]])
                     if vulnerable_shards.isdisjoint(my_shards):
@@ -548,10 +550,10 @@ class ElasticSearchCheck(NagiosCheck):
             msg = ("One or more index shards are not being replicated "
                    "across failure domains.  Use -vv to list them.")
 
-        # ES detected a problem that we did not.  This should never 
-        # happen.  (If it does, you should work out what happened, then 
-        # fix this code so that we can detect the problem if it happens 
-        # again.)  Obviously, in this case, we cannot provide any useful 
+        # ES detected a problem that we did not.  This should never
+        # happen.  (If it does, you should work out what happened, then
+        # fix this code so that we can detect the problem if it happens
+        # again.)  Obviously, in this case, we cannot provide any useful
         # output to the operator.
         if their_health < self.health:
             raise Status('critical',
@@ -573,9 +575,9 @@ class ElasticSearchCheck(NagiosCheck):
 def booleanise(b):
     """Normalise a 'stringified' Boolean to a proper Python Boolean.
 
-    ElasticSearch has a habit of returning "true" and "false" in its 
-    JSON responses when it should be returning `true` and `false`.  If 
-    `b` looks like a stringified Boolean true, return True.  If `b` 
+    ElasticSearch has a habit of returning "true" and "false" in its
+    JSON responses when it should be returning `true` and `false`.  If
+    `b` looks like a stringified Boolean true, return True.  If `b`
     looks like a stringified Boolean false, return False.
 
     Raise ValueError if we don't know what `b` is supposed to represent.
@@ -591,9 +593,11 @@ def booleanise(b):
 
 
 def get_json(uri):
+    print "get url:", uri
     try:
         f = urllib2.urlopen(uri)
     except urllib2.HTTPError, e:
+        print uri, e
         raise Status('unknown', ("API failure",
                                  None,
                                  "API failure:\n\n%s" % str(e)))
