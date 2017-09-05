@@ -52,7 +52,7 @@ Installation
 `pip install nagios-plugin-elasticsearch` (from
 [PyPi](https://pypi.python.org/pypi/nagios-plugin-elasticsearch/1.0.0)).
 
-sudo pip install git+https://github.com/ChainBoy/nagios-plugin-elasticsearch.git (from this repository)
+`sudo pip install git+https://github.com/ChainBoy/nagios-plugin-elasticsearch.git` (from [this repository](https://github.com/ChainBoy/nagios-plugin-elasticsearch)).
 Usage:
 -----
 ```
